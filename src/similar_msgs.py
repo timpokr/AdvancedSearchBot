@@ -1,7 +1,6 @@
 import itertools
 import re
 from functools import lru_cache
-from typing import AsyncGenerator
 
 import nltk
 import requests
@@ -56,7 +55,8 @@ def get_normalized_words(text):
 
 
 def is_similar(request, req_synonyms, text):
-    if fuzz.partial_token_sort_ratio(request, text) >= 90:
+    if len(request) <= len(text) + 2 and \
+            fuzz.partial_token_sort_ratio(text, request) >= 90:
         print('partial')
         return True
 
@@ -69,7 +69,7 @@ def is_similar(request, req_synonyms, text):
     return score >= 0.8
 
 
-async def get_similar_msgs(request, msgs: AsyncGenerator[types.Message, None], max_count):
+def get_similar_msgs(request, msgs: list[types.Message], max_count):
     req_synonyms = []
     for word in word_tokenize(request):
         word_synonyms = set()
@@ -86,12 +86,13 @@ async def get_similar_msgs(request, msgs: AsyncGenerator[types.Message, None], m
         return []
 
     result = []
-    async for msg in msgs:
-        if msg.text is None:
+    for msg in msgs:
+        text = msg.text or msg.caption
+        if text is None:
             continue
-        if is_similar(request, req_synonyms, msg.text):
+        if is_similar(request, req_synonyms, text):
             result.append(msg)
-            print(msg.text)
+            print(text)
         if len(result) >= max_count:
             break
     return result
